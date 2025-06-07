@@ -1,0 +1,2 @@
+1) Add integration with calendar to trach at which dates trainings were completed
+2) Add premium plan with the ability to make custom-length plans
