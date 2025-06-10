@@ -3,11 +3,13 @@ name = "gym_tracker"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-actix-web="4"
-tokio = { version = "*", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-actix-session = { version = "0.10.1", features = ["redis-session"] }
+[workspace]
+members = ["./entity", "api", "db", "migration"]
+
+[workspace.dependencies]
 anyhow = "1.0.98"
 thiserror = "2.0.12"
+
+
+[dependencies]
+api = { path = "api" }

@@ -1,2 +1,5 @@
 target/
-
+frontend/
+ebanie.py
+index.html
+.envrc
