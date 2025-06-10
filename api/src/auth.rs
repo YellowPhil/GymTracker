@@ -10,7 +10,7 @@ use actix_web::{
 };
 use db::user::Mutate as MutateUser;
 use db::user::View as ViewUser;
-use entity::user::Plan;
+use regex::Regex;
 use serde::Deserialize;
 
 use crate::AppState;
@@ -19,11 +19,16 @@ pub const USER_ID_KEY: &'static str = "user_id";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct LoginRequest {
-    username: String,
+    email: String,
     password: String,
 }
 
-pub type RegisterRequest = LoginRequest;
+#[derive(Debug, Clone, Deserialize)]
+pub struct RegisterRequest {
+    email: String,
+    username: String,
+    password: String,
+}
 
 pub async fn auth_middleware(
     req: ServiceRequest,
@@ -43,7 +48,7 @@ pub async fn login(
     session: Session,
     data: Json<LoginRequest>,
 ) -> impl Responder {
-    let Ok(Some(user)) = ViewUser::by_username(&state.connection, &data.username).await else {
+    let Ok(Some(user)) = ViewUser::by_email(&state.connection, &data.email).await else {
         return HttpResponse::Forbidden().json("Invalid login or password");
     };
     if !user.verify_password(&data.password) {
@@ -60,21 +65,36 @@ pub async fn register(
     data: Json<RegisterRequest>,
 ) -> impl Responder {
     let conn = &state.connection;
-    if let Ok(Some(_)) = ViewUser::by_username(conn, &data.username).await {
-        return HttpResponse::BadRequest().json("User with this username already exists");
-    };
-    match ViewUser::by_username(conn, &data.username).await {
-        Ok(Some(_)) => {
-            return HttpResponse::BadRequest().json("User with this username already exists");
-        }
-        Err(e) => {
-            println!("Error: registering: {:?}", e);
+
+    // TODO: maybe switch to a full-featured validator
+    let re = Regex::new(r"^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$").unwrap();
+    if !re.is_match(&data.email) {
+        return HttpResponse::BadRequest().body("Invalid email");
+    }
+
+    match (
+        ViewUser::by_username(conn, &data.username).await,
+        ViewUser::by_email(conn, &data.email).await,
+    ) {
+        (Ok(None), Ok(None)) => (),
+        (Err(e), _) => {
+            println!("Error checking username: {:?}", e);
             return HttpResponse::InternalServerError().finish();
         }
-        _ => (),
+        (_, Err(e)) => {
+            println!("Error checking email: {:?}", e);
+            return HttpResponse::InternalServerError().finish();
+        }
+        _ => return HttpResponse::BadRequest().json("Username or email already taken"),
     }
-    if let Ok(id) =
-        MutateUser::create_user(conn, data.username.clone(), data.password.clone(), None).await
+    if let Ok(id) = MutateUser::create_user(
+        conn,
+        data.username.clone(),
+        data.email.clone(),
+        data.password.clone(),
+        None,
+    )
+    .await
     {
         let _ = session.insert(USER_ID_KEY, id);
         HttpResponse::Ok().finish()

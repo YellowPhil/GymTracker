@@ -10,3 +10,4 @@ db = {path = "../db"}
 serde = "1.0"
 actix-web = "4"
 sea-orm = "1.1.12"
+regex = "1.11.1"

@@ -35,9 +35,11 @@ pub struct Model {
     #[serde(skip_deserializing)]
     pub id: i32,
     pub name: String,
+    #[sea_orm(unique)]
     pub email: String,
     password: String,
     pub status: UserStatus,
+    #[sea_orm(nullable)]
     pub plan: Option<Plan>,
     pub visited_trainings: i32,
 }

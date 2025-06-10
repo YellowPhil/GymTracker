@@ -30,11 +30,13 @@ impl Mutate {
     pub async fn create_user(
         conn: &DatabaseConnection,
         username: String,
+        email: String,
         password: String,
         plan: Option<Plan>,
     ) -> Result<i32, MutateError> {
         let user = entity::user::ActiveModel {
             id: NotSet,
+            email: Set(email),
             name: Set(username),
             password: Set(password),
             plan: Set(plan),
@@ -78,15 +80,27 @@ impl View {
             None => Err(ViewError::NoPlan),
         }
     }
-    pub async fn by_id(conn: &DatabaseConnection, user_id: i32) -> Result<Option<Model>, ViewError> {
+    pub async fn by_id(
+        conn: &DatabaseConnection,
+        user_id: i32,
+    ) -> Result<Option<Model>, ViewError> {
         Ok(User::find_by_id(user_id).one(conn).await?)
     }
     pub async fn by_username(
         conn: &DatabaseConnection,
         username: &str,
-    ) -> Result<Option<Model>, DbErr> {
+    ) -> Result<Option<Model>, ViewError> {
         Ok(User::find()
             .filter(user::Column::Name.eq(username))
+            .one(conn)
+            .await?)
+    }
+    pub async fn by_email(
+        conn: &DatabaseConnection,
+        email: &str,
+    ) -> Result<Option<Model>, ViewError> {
+        Ok(User::find()
+            .filter(user::Column::Email.eq(email))
             .one(conn)
             .await?)
     }
