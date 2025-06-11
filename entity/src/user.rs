@@ -1,3 +1,4 @@
+use super::training::Entity as Training;
 use sea_orm::{
     ActiveValue::Set,
     prelude::{async_trait::async_trait, *},
@@ -8,7 +9,7 @@ use serde::{Deserialize, Serialize};
     Serialize, PartialEq, Eq, Deserialize, Debug, Default, Clone, EnumIter, DeriveActiveEnum,
 )]
 #[sea_orm(rs_type = "i32", db_type = "Integer")]
-#[serde(tag="plan")]
+#[serde(tag = "plan")]
 pub enum Plan {
     #[sea_orm(num_value = 15)]
     FifteenTrainings = 15,
@@ -45,13 +46,22 @@ pub struct Model {
 }
 impl Model {
     // TODO: profile if this is long enogh to send it to tokio::spawn_blocking
-    pub fn verify_password<'a> (&self, password: &'a str) -> bool {
+    pub fn verify_password<'a>(&self, password: &'a str) -> bool {
         bcrypt::verify(password, &self.password).is_ok()
     }
 }
 
 #[derive(Clone, Copy, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(has_many = "super::training::Entity")]
+    Training,
+}
+
+impl Related<super::training::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Training.def()
+    }
+}
 
 #[async_trait]
 impl ActiveModelBehavior for ActiveModel {
