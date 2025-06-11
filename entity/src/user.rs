@@ -1,4 +1,3 @@
-use super::training::Entity as Training;
 use sea_orm::{
     ActiveValue::Set,
     prelude::{async_trait::async_trait, *},

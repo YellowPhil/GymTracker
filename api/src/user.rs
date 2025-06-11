@@ -1,16 +1,24 @@
 use actix_session::Session;
 use actix_web::{get, post, web::{self,Json}, HttpResponse, Responder};
+use chrono::NaiveDate;
 use db::user::{Mutate, MutateError, View};
 use entity::user::Plan;
+use serde::Deserialize;
 
 use crate::{AppState, auth};
 
+
+#[derive(Debug, Deserialize)]
+struct AddTrainingRequest {
+    date: NaiveDate
+}
+
 #[post("/add_training")]
-pub async fn add_training(state: web::Data<AppState>, session: Session) -> impl Responder {
+pub async fn add_training(state: web::Data<AppState>, session: Session, data: Json<AddTrainingRequest>) -> impl Responder {
     let conn = &state.connection;
     let user_id = session.get::<i32>(auth::USER_ID_KEY).unwrap().unwrap();
 
-    match Mutate::add_training(conn, user_id).await {
+    match Mutate::add_training(conn, user_id, data.date).await {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(MutateError::NoPlan) => HttpResponse::BadRequest().json("User has no active plan"),
         Err(e) => {
@@ -20,7 +28,7 @@ pub async fn add_training(state: web::Data<AppState>, session: Session) -> impl 
     }
 }
 
-#[get("/trainings_left")]
+#[get("/trainings")]
 pub async fn trainings_left(state: web::Data<AppState>, session: Session) -> impl Responder {
     let conn = &state.connection;
     let user_id = session.get::<i32>(auth::USER_ID_KEY).unwrap().unwrap();

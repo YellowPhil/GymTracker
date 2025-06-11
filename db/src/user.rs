@@ -1,8 +1,10 @@
+use chrono::NaiveDate;
+use entity::training::Entity as Training;
 use entity::user::{self, Entity as User, Model, Plan};
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::{NotSet, Set},
-    ColumnTrait, DatabaseConnection, DbErr, EntityTrait, IntoActiveModel, QueryFilter,
+    ColumnTrait, DatabaseConnection, DbErr, EntityTrait, IntoActiveModel, ModelTrait, QueryFilter,
 };
 use thiserror::Error;
 
@@ -53,26 +55,50 @@ impl Mutate {
     ) -> Result<(), MutateError> {
         let mut user = user_by_id(conn, user_id).await?.into_active_model();
         user.plan = Set(Some(new_plan));
+        user.visited_trainings = Set(0);
         user.update(conn).await?;
         Ok(())
     }
 
-    pub async fn add_training(conn: &DatabaseConnection, user_id: i32) -> Result<(), MutateError> {
+    pub async fn add_training(
+        conn: &DatabaseConnection,
+        user_id: i32,
+        date: NaiveDate,
+    ) -> Result<(), MutateError> {
         let mut user = user_by_id(conn, user_id).await?.into_active_model();
-        let user_plan = user.plan.unwrap();
+        let user_plan = match user.plan.clone().unwrap() {
+            Some(p) => p,
+            None => return Err(MutateError::NoPlan),
+        };
         let visited = user.visited_trainings.unwrap();
-        if user_plan.is_none() {
-            return Err(MutateError::NoPlan);
-        }
+
+        let new_training = entity::training::ActiveModel {
+            id: NotSet,
+            user_id: Set(user_id),
+            date: Set(date),
+        };
+        new_training.insert(conn).await?;
+
         user.visited_trainings = Set(visited + 1);
-        if visited + 1 >= user_plan.unwrap() as i32 {
+        if visited + 1 >= user_plan as i32 {
             user.plan = Set(None);
         }
+        user.save(conn).await?;
+
         Ok(())
     }
 }
 
 impl View {
+    pub async fn get_trainings(
+        conn: &DatabaseConnection,
+        user_id: i32,
+    ) -> Result<Vec<entity::training::Model>, ViewError> {
+        let user = User::find_by_id(user_id).one(conn).await?.unwrap();
+        let trainings = user.find_related(Training).all(conn).await?;
+
+        Ok(trainings)
+    }
     pub async fn trainings_left(conn: &DatabaseConnection, user_id: i32) -> Result<i32, ViewError> {
         let user = user_by_id(conn, user_id).await?;
         match user.plan {

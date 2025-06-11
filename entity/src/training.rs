@@ -1,6 +1,5 @@
 use sea_orm::{prelude::*, sqlx::types::chrono};
 use serde::{Deserialize, Serialize};
-use super::user::Entity as User;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "trainings")]

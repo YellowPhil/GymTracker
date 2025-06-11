@@ -12,6 +12,9 @@ impl MigrationTrait for Migration {
         let schema = Schema::new(DbBackend::Postgres);
         manager
             .create_table(schema.create_table_from_entity(entity::user::Entity))
+            .await?;
+        manager
+            .create_table(schema.create_table_from_entity(entity::training::Entity))
             .await
     }
 
